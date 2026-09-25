@@ -1,0 +1,35 @@
+{
+  "name": "controle-equipamentos-informatica",
+  "version": "1.0.1",
+  "description": "Terminal offline para retirada de equipamentos escolares",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "renderer": "vite",
+    "build": "vite build",
+    "dist": "npm run build && electron-builder --win nsis",
+    "test": "node --test --test-isolation=none"
+  },
+  "build": {
+    "appId": "br.gov.escola.controleequipamentos",
+    "productName": "ControleEquipamentos",
+    "asar": false,
+    "directories": { "output": "release-current" },
+    "files": ["renderer-dist/**/*", "electron/**/*", "package.json"],
+    "win": { "target": "nsis" },
+    "nsis": { "artifactName": "ControleEquipamentos-Setup.${ext}", "oneClick": false, "perMachine": true }
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "better-sqlite3": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "concurrently": "latest",
+    "electron": "latest",
+    "electron-builder": "latest",
+    "vite": "latest",
+    "wait-on": "latest"
+  }
+}
