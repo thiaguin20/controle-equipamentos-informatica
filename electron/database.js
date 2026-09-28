@@ -10,7 +10,7 @@ function getDb() {
   db = new Database(path.join(app.getPath('userData'), 'controle-equipamentos.db'));
   db.pragma('foreign_keys = ON');
   db.pragma('journal_mode = WAL');
-  migrate(); seed(); importScheduleTeachers(); cleanup(); return db;
+  migrate(); seed(); importScheduleTeachers(); return db;
 }
 function migrate() {
   const d=getRaw();
@@ -35,7 +35,7 @@ function seed() {
   [['Notebook','💻',25,1,0],['Fone','🎧',80,1,0],['Tablet','📱',13,1,0],['Celular','📱',5,1,0],['Carrinho de Notebooks','🛒',1,0,1]].forEach(x=>addEq.run(...x));
   const add=d.prepare('INSERT INTO teachers (name) VALUES (?)'); ['Professor 1','Professor 2','Professor 3'].forEach(x=>add.run(x));
   const room=d.prepare('INSERT INTO locations (name) VALUES (?)'); ['Sala 01','Sala 02','Sala 04','Sala 08','Sala 12','Laboratório','Biblioteca'].forEach(x=>room.run(x));
-  d.prepare("INSERT INTO settings(key,value) VALUES ('pin','1234'),('retentionDays','14'),('kiosk','false'),('autostart','false')").run();
+  d.prepare("INSERT INTO settings(key,value) VALUES ('pin','1234'),('kiosk','false'),('autostart','false'),('shutdownTime','18:30')").run();
 }
 function importScheduleTeachers(){
   const d=getRaw();
@@ -48,7 +48,7 @@ function importScheduleTeachers(){
     d.prepare("INSERT INTO settings(key,value) VALUES('scheduleTeachersImportedV2','2026-09-24')").run();
   })();
 }
-function cleanup(){ const days=Number(getRaw().prepare("SELECT value FROM settings WHERE key='retentionDays'").get()?.value||14); getRaw().prepare("DELETE FROM withdrawals WHERE status='DEVOLVIDO' AND returned_at < datetime('now', ?)").run(`-${days} days`); }
+function cleanup(){ /* Mantida para compatibilidade; não há mais exclusão automática. */ }
 function catalog(){const d=getDb(); return {teachers:d.prepare('SELECT * FROM teachers WHERE active=1 AND pending_review=0 ORDER BY name').all(), locations:d.prepare('SELECT * FROM locations WHERE active=1 AND pending_review=0 ORDER BY name').all(), equipment:d.prepare(`SELECT e.*, e.total-COALESCE((SELECT SUM(quantity) FROM withdrawals w WHERE w.equipment_id=e.id AND w.status='EM_USO'),0) available FROM equipment_types e WHERE active=1 AND pending_review=0 ORDER BY id`).all()};}
 function dashboard(){const d=getDb(); return d.prepare(`SELECT w.*,t.name teacher,e.name equipment,e.icon,COALESCE(l.name,w.location_name) location FROM withdrawals w JOIN teachers t ON t.id=w.teacher_id JOIN equipment_types e ON e.id=w.equipment_id LEFT JOIN locations l ON l.id=w.location_id WHERE w.status='EM_USO' ORDER BY w.taken_at DESC`).all();}
 function createWithdrawal(x){
@@ -85,7 +85,7 @@ function createWithdrawal(x){
     return d.prepare('INSERT INTO withdrawals(teacher_id,equipment_id,quantity,location_id,location_name) VALUES(?,?,?,?,?)').run(teacher.id,eq.id,quantity,location.id,null).lastInsertRowid;
   })();
 }
-function admin(){const d=getDb();return {teachers:d.prepare('SELECT * FROM teachers WHERE pending_review=0 ORDER BY name').all(),pendingTeachers:d.prepare('SELECT * FROM teachers WHERE pending_review=1 ORDER BY name').all(),locations:d.prepare('SELECT * FROM locations WHERE pending_review=0 ORDER BY name').all(),pendingLocations:d.prepare('SELECT * FROM locations WHERE pending_review=1 ORDER BY name').all(),equipment:d.prepare(`SELECT e.*, e.total-COALESCE((SELECT SUM(quantity) FROM withdrawals w WHERE w.equipment_id=e.id AND w.status='EM_USO'),0) available FROM equipment_types e WHERE pending_review=0 ORDER BY name`).all(),pendingEquipment:d.prepare(`SELECT e.*,COALESCE((SELECT SUM(quantity) FROM withdrawals w WHERE w.equipment_id=e.id AND w.status='EM_USO'),0) inUse FROM equipment_types e WHERE pending_review=1 ORDER BY name`).all(),history:d.prepare(`SELECT w.*,t.name teacher,e.name equipment,e.icon,COALESCE(l.name,w.location_name) location FROM withdrawals w JOIN teachers t ON t.id=w.teacher_id JOIN equipment_types e ON e.id=w.equipment_id LEFT JOIN locations l ON l.id=w.location_id ORDER BY w.taken_at DESC LIMIT 300`).all(),settings:Object.fromEntries(d.prepare('SELECT key,value FROM settings').all().map(x=>[x.key,x.value]))};}
+function admin(){const d=getDb();return {teachers:d.prepare('SELECT * FROM teachers WHERE pending_review=0 ORDER BY name').all(),pendingTeachers:d.prepare('SELECT * FROM teachers WHERE pending_review=1 ORDER BY name').all(),locations:d.prepare('SELECT * FROM locations WHERE pending_review=0 ORDER BY name').all(),pendingLocations:d.prepare('SELECT * FROM locations WHERE pending_review=1 ORDER BY name').all(),equipment:d.prepare(`SELECT e.*, e.total-COALESCE((SELECT SUM(quantity) FROM withdrawals w WHERE w.equipment_id=e.id AND w.status='EM_USO'),0) available FROM equipment_types e WHERE pending_review=0 ORDER BY name`).all(),pendingEquipment:d.prepare(`SELECT e.*,COALESCE((SELECT SUM(quantity) FROM withdrawals w WHERE w.equipment_id=e.id AND w.status='EM_USO'),0) inUse FROM equipment_types e WHERE pending_review=1 ORDER BY name`).all(),history:d.prepare(`SELECT w.*,t.name teacher,e.name equipment,e.icon,COALESCE(l.name,w.location_name) location FROM withdrawals w JOIN teachers t ON t.id=w.teacher_id JOIN equipment_types e ON e.id=w.equipment_id LEFT JOIN locations l ON l.id=w.location_id ORDER BY w.taken_at DESC, w.id DESC`).all(),settings:{shutdownTime:'18:30',...Object.fromEntries(d.prepare('SELECT key,value FROM settings').all().map(x=>[x.key,x.value]))}};}
 function saveEntity({type,item}){
   const d=getDb(),table={teacher:'teachers',location:'locations',equipment:'equipment_types'}[type];
   if(!table)throw new Error('Tipo inválido');
@@ -122,5 +122,18 @@ function deleteEntity({type,id}){
   if(!result.changes)throw new Error('Item não encontrado.');
 }
 function updateWithdrawal(x){const d=getDb(); if(x.forceReturn){d.prepare("UPDATE withdrawals SET status='DEVOLVIDO',returned_at=CURRENT_TIMESTAMP WHERE id=? AND status='EM_USO'").run(x.id);return;} d.prepare('UPDATE withdrawals SET teacher_id=?,location_id=?,location_name=? WHERE id=? AND status=\'EM_USO\'').run(x.teacherId,x.locationId||null,x.locationName||null,x.id);}
-function settings(s){const d=getDb();const put=d.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value');Object.entries(s).forEach(([k,v])=>put.run(k,String(v))); cleanup();}
-module.exports={getDb,catalog,dashboard,createWithdrawal,admin,saveEntity,deleteEntity,updateWithdrawal,settings,cleanup};
+function deleteHistory(id){
+  if(!Number.isInteger(id)||id<1)throw new Error('Registro inválido.');
+  const result=getDb().prepare("DELETE FROM withdrawals WHERE id=? AND status='DEVOLVIDO'").run(id);
+  if(!result.changes)throw new Error('Apenas retiradas já devolvidas podem ser excluídas.');
+  return result.changes;
+}
+function clearHistory(){return getDb().prepare("DELETE FROM withdrawals WHERE status='DEVOLVIDO'").run().changes;}
+function settings(s){
+  const d=getDb();
+  const allowed=['pin','kiosk','autostart','shutdownTime'];
+  if('shutdownTime' in s && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(s.shutdownTime)))throw new Error('Informe um horário válido para o desligamento.');
+  const put=d.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value');
+  d.transaction(()=>{for(const key of allowed)if(key in s)put.run(key,String(s[key]));})();
+}
+module.exports={getDb,catalog,dashboard,createWithdrawal,admin,saveEntity,deleteEntity,updateWithdrawal,deleteHistory,clearHistory,settings,cleanup};

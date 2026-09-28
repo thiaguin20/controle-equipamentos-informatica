@@ -9,14 +9,20 @@ function minuteOfDay(date) {
   return date.getHours() * 60 + date.getMinutes();
 }
 
-function warningMinutesRemaining(date) {
-  const minute = minuteOfDay(date);
-  if (minute < WARNING_MINUTE || minute > SHUTDOWN_MINUTE) return null;
-  return SHUTDOWN_MINUTE - minute;
+function parseShutdownTime(value) {
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value))) return SHUTDOWN_MINUTE;
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
 }
 
-function shouldRequestShutdown(date, armedDay, completedDay) {
-  return minuteOfDay(date) >= SHUTDOWN_MINUTE &&
+function warningMinutesRemaining(date, shutdownMinute = SHUTDOWN_MINUTE) {
+  const minute = minuteOfDay(date);
+  if (minute < shutdownMinute - 5 || minute > shutdownMinute) return null;
+  return shutdownMinute - minute;
+}
+
+function shouldRequestShutdown(date, armedDay, completedDay, shutdownMinute = SHUTDOWN_MINUTE) {
+  return minuteOfDay(date) >= shutdownMinute &&
     armedDay === localDayKey(date) &&
     completedDay !== localDayKey(date);
 }
@@ -25,6 +31,7 @@ module.exports = {
   SHUTDOWN_MINUTE,
   localDayKey,
   minuteOfDay,
+  parseShutdownTime,
   warningMinutesRemaining,
   shouldRequestShutdown
 };

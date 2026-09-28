@@ -31,7 +31,7 @@ O estoque disponível é calculado como `total − soma das quantidades em retir
 - `locations`: salas e outros locais.
 - `equipment_types`: tipo, ícone, total e regras de controle de quantidade.
 - `withdrawals`: quem retirou, o quê, quanto, para onde e estado da devolução.
-- `settings`: PIN, retenção de histórico e opções locais.
+- `settings`: PIN, horário de desligamento e opções locais. A chave antiga de retenção pode continuar em bancos existentes, mas não é mais aplicada.
 
 O SQLite usa chaves estrangeiras e modo WAL. O banco é aberto a partir de `app.getPath('userData')`, ou seja, **cada conta Windows tem seus próprios dados**.
 
@@ -41,7 +41,7 @@ O Admin permite editar o total de um equipamento, mas não reduzir o total abaix
 
 Quando a pessoa escolhe **Outro**, o nome digitado é gravado como pendente de revisão. A retirada permanece registrada, mas o novo nome não entra automaticamente no catálogo público. O Admin pode revisar e cadastrar.
 
-O histórico de devoluções antigas pode ser limpo conforme `retentionDays` em `settings`. Isso não é um backup: para guardar os dados por mais tempo, exporte o banco periodicamente.
+Não há mais exclusão automática de histórico. No Admin, uma devolução pode ser excluída individualmente ou todas as devoluções podem ser apagadas com confirmação. Retiradas `EM_USO` não podem ser apagadas, pois fazem parte do cálculo do estoque. Exporte um backup antes da limpeza de fim de ano.
 
 ## Limites atuais
 

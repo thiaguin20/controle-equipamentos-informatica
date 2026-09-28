@@ -72,6 +72,23 @@ test('fluxos de retirada, devolução, estoque e cadastro do Admin', () => {
     assert.throws(()=>db.createWithdrawal({teacherId:pendingTeacher.id,equipmentId:pendingEquipment.id,quantity:1,locationId}),/0 disponíveis/);
     db.updateWithdrawal({id:unusualId,forceReturn:true});
     assert.equal(db.catalog().equipment.find(item=>item.name==='Adaptador especial').available,2);
+    const oldReturned=db.createWithdrawal({teacherId:pendingTeacher.id,equipmentId:pendingEquipment.id,quantity:1,locationId:pendingLocation.id});
+    db.updateWithdrawal({id:oldReturned,forceReturn:true});
+    db.getDb().prepare("UPDATE withdrawals SET returned_at='2020-01-01 12:00:00' WHERE id=?").run(oldReturned);
+    db.cleanup();
+    assert.equal(db.admin().history.some(item=>item.id===oldReturned),true);
+    assert.throws(()=>db.deleteHistory(-1),/inválido/);
+    assert.throws(()=>db.deleteHistory(unusualId+9999),/devolvidas/);
+    db.deleteHistory(oldReturned);
+    assert.equal(db.admin().history.some(item=>item.id===oldReturned),false);
+    assert.throws(()=>db.deleteHistory(db.dashboard()[0].id),/devolvidas/);
+    const openCount=db.dashboard().length;
+    assert.ok(db.clearHistory()>0);
+    assert.equal(db.dashboard().length,openCount);
+    assert.equal(db.admin().history.filter(item=>item.status==='DEVOLVIDO').length,0);
+    db.settings({shutdownTime:'17:45'});
+    assert.equal(db.admin().settings.shutdownTime,'17:45');
+    assert.throws(()=>db.settings({shutdownTime:'25:99'}),/horário válido/);
   } finally {
     db.getDb().close();
     fs.rmSync(directory,{recursive:true,force:true});

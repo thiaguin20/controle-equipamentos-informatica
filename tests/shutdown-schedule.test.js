@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   localDayKey,
+  parseShutdownTime,
   warningMinutesRemaining,
   shouldRequestShutdown
 } = require('../electron/shutdown-schedule');
@@ -26,4 +27,15 @@ test('desliga depois de 18h30 somente se o quiosque ja estava aberto no dia', ()
   assert.equal(shouldRequestShutdown(at(18, 30), null, null), false);
   assert.equal(shouldRequestShutdown(at(18, 30), day, day), false);
   assert.equal(shouldRequestShutdown(at(18, 30, 26), day, null), false);
+});
+
+test('horario configuravel altera aviso e desligamento',()=>{
+  const minute=parseShutdownTime('17:45');
+  const day=localDayKey(at(17,44));
+  assert.equal(minute,17*60+45);
+  assert.equal(warningMinutesRemaining(at(17,40),minute),5);
+  assert.equal(warningMinutesRemaining(at(17,44),minute),1);
+  assert.equal(shouldRequestShutdown(at(17,44),day,null,minute),false);
+  assert.equal(shouldRequestShutdown(at(17,45),day,null,minute),true);
+  assert.equal(parseShutdownTime('25:99'),18*60+30);
 });
