@@ -19,7 +19,7 @@ O Shell Launcher precisa de Windows Enterprise/Education e a aplicação da conf
 
 Na versão 2.0.0, **somente no modo quiosque gerenciado**, o aplicativo mostra um aviso nos cinco minutos anteriores ao horário configurado em **Administração → Configurações** (padrão: 18h30). Se ele estava aberto antes desse horário, solicita o desligamento nesse horário. A chamada usa `shutdown.exe /s /f /t 0`: o Windows fecha os programas, inclusive formulários ainda não salvos. O computador deve manter relógio e fuso horário corretos.
 
-O desligamento é uma função do aplicativo, não uma tarefa agendada do Windows. Se o aplicativo não estiver rodando ou o Windows não aceitar a solicitação, ele pode não acontecer. A lógica foi testada automaticamente; a operação real no notebook deve ser observada. Um desligamento único de contingência no Windows é uma medida separada e ainda não faz parte deste projeto.
+O desligamento é uma função do aplicativo, não uma tarefa agendada do Windows. Se o aplicativo não estiver rodando ou o Windows não aceitar a solicitação, ele pode não acontecer. A lógica passou em testes automatizados; o usuário também confirmou o aviso e o desligamento real no notebook da escola usando temporariamente 13h07. Depois desse teste, é necessário conferir no próprio notebook se o horário da rotina foi salvo novamente como 18h30. Um desligamento de contingência independente no Windows é uma medida separada e ainda não faz parte deste projeto.
 
 ## Manutenção e reversão
 
